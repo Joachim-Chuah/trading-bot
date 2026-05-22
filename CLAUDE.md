@@ -18,6 +18,68 @@ This is a Python-based stock screener built around a LEAP options strategy with 
 
 ---
 
+## 1. Think Before Coding
+
+**Don't assume. Don't hide confusion. Surface tradeoffs.**
+
+Before implementing:
+- State assumptions explicitly. If uncertain, ask.
+- If multiple interpretations exist, present them — don't pick silently.
+- If a simpler approach exists, say so. Push back when warranted.
+- If something is unclear, stop. Name what's confusing. Ask.
+
+---
+
+## 2. Simplicity First
+
+**Minimum code that solves the problem. Nothing speculative.**
+
+- No features beyond what was asked.
+- No abstractions for single-use code.
+- No "flexibility" or "configurability" that wasn't requested.
+- No error handling for impossible scenarios.
+- If you write 200 lines and it could be 50, rewrite it.
+
+Ask: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
+
+---
+
+## 3. Surgical Changes
+
+**Touch only what you must. Clean up only your own mess.**
+
+When editing existing code:
+- Don't "improve" adjacent code, comments, or formatting.
+- Don't refactor things that aren't broken.
+- Match existing style, even if you'd do it differently.
+- If you notice unrelated dead code, mention it — don't delete it.
+
+When your changes create orphans:
+- Remove imports/variables/functions that YOUR changes made unused.
+- Don't remove pre-existing dead code unless asked.
+
+Every changed line should trace directly to the user's request.
+
+---
+
+## 4. Goal-Driven Execution
+
+**Define success criteria. Loop until verified.**
+
+Transform tasks into verifiable goals:
+- "Add validation" → "Write tests for invalid inputs, then make them pass"
+- "Fix the bug" → "Write a test that reproduces it, then make it pass"
+- "Refactor X" → "Ensure tests pass before and after"
+
+For multi-step tasks, state a brief plan:
+```
+1. [Step] → verify: [check]
+2. [Step] → verify: [check]
+3. [Step] → verify: [check]
+```
+
+---
+
 ## Code Standards
 
 ### General
@@ -46,7 +108,7 @@ This is a Python-based stock screener built around a LEAP options strategy with 
 
 - Tests live in `tests/` and mirror the module structure (e.g., `screener/fundamentals.py` → `tests/test_fundamentals.py`)
 - Use `pytest`
-- Aim for **≥ 80% code coverage** across the project; critical strategy logic (LEAP criteria: oversold detection, support levels, IV check, liquidity check, fundamental catalyst — and CSP pivot conditions) must be at **100%**
+- Aim for **≥ 80% code coverage** across the project; critical strategy logic (LEAP criteria: oversold detection, support levels, IV check, liquidity check, OTM threshold, fundamental catalyst — and CSP pivot conditions) must be at **100%**
 - Test edge cases: empty data, API failures, boundary values on thresholds
 - Do not mock internal logic — only mock at external boundaries (API calls, file I/O)
 - Run tests before marking any task complete:
@@ -65,13 +127,13 @@ This is a Python-based stock screener built around a LEAP options strategy with 
 - **Capital-aware** — all position suggestions must respect the $1,000–$1,500 capital constraint and the 2–4 week minimum hold period
 - **News is mandatory context** — every pick must surface recent relevant news; a pick without news context is incomplete
 - **Conviction is required** — every pick must include a conviction rating. Never output a pick without one.
+- **OTM hard limit** — never suggest a LEAP contract more than 10% OTM. Deeper OTM = mostly extrinsic value = theta decay with no real delta exposure.
 
 ---
 
 ## What NOT to Do
 
 - Do not add features beyond the current task scope
-- Do not add error handling for scenarios that cannot happen
 - Do not add backwards-compatibility shims for removed code — delete it cleanly
 - Do not introduce abstractions until there are at least three concrete use cases for them
 - Do not commit secrets, API keys, or `.env` files

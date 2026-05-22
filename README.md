@@ -15,6 +15,9 @@ LEAPS (Long-term Equity Anticipation Securities) are used as a capital-efficient
 3. **Low IV environment** — cheaper contracts; IV rank/percentile must be low to favor buying options
 4. **Adequate options liquidity** — sufficient open interest and tight bid-ask spreads to enter and exit cleanly
 5. **Strong fundamental catalyst** — a clear reason the stock should recover/grow (earnings, product cycle, sector tailwind, etc.)
+6. **Strike within 10% OTM — no exceptions** — do not chase cheap far-OTM contracts. Beyond 10% OTM, premium is predominantly extrinsic value that bleeds away via theta every day. ATM or slight OTM (≤10%) gives real delta exposure; deeper OTM is a lottery ticket dressed as a trade.
+
+> **The cheap LEAP trap:** A $0.50 contract 30% OTM looks attractive but has almost no delta and is almost entirely time value. You need a massive move just to break even. Stay ATM to ≤10% OTM — you pay more upfront but you're actually buying exposure, not hope.
 
 *Greek specifics (delta, DTE, etc.) to be defined in a future iteration.*
 
@@ -135,8 +138,5 @@ python main.py
 
 ## Open Questions
 
-- What are the exact LEAP entry criteria (delta, DTE, fundamental thresholds)?
 - Twitter cross-ref: sentiment scoring, specific accounts, or mention volume?
-- SPY baseline: what metrics are we comparing (relative strength, beta, sector)?
-- CSP pivot: what specific conditions trigger the fallback?
 - Daily picks: is there a target count, or purely criteria-driven?
