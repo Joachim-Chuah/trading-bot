@@ -16,7 +16,7 @@ class ScreenerRun(Base):
     put_call_ratio = Column(Float)
     macro_signal = Column(String)  # "favorable", "neutral", "hostile"
     picks_count = Column(Integer, default=0)
-    created_at = Column(DateTime, server_default=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     picks = relationship("Pick", back_populates="run")
 
@@ -33,7 +33,7 @@ class Pick(Base):
     fundamentals = Column(JSON)
     options_data = Column(JSON)
     technicals = Column(JSON)
-    created_at = Column(DateTime, server_default=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     run = relationship("ScreenerRun", back_populates="picks")
 
@@ -45,7 +45,7 @@ class Watchlist(Base):
     ticker = Column(String, nullable=False, unique=True)
     active = Column(Boolean, default=True)
     notes = Column(String)
-    added_at = Column(DateTime, server_default=func.now())
+    added_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
 class ApiCache(Base):
@@ -54,5 +54,5 @@ class ApiCache(Base):
     id = Column(Integer, primary_key=True)
     cache_key = Column(String, nullable=False, unique=True)
     data = Column(JSON, nullable=False)
-    expires_at = Column(DateTime, nullable=False)
-    created_at = Column(DateTime, server_default=func.now())
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
