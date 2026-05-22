@@ -46,7 +46,7 @@ This is a Python-based stock screener built around a LEAP options strategy with 
 
 - Tests live in `tests/` and mirror the module structure (e.g., `screener/fundamentals.py` → `tests/test_fundamentals.py`)
 - Use `pytest`
-- Aim for **≥ 80% code coverage** across the project; critical strategy logic (LEAP criteria, CSP pivot conditions) must be at **100%**
+- Aim for **≥ 80% code coverage** across the project; critical strategy logic (LEAP criteria: oversold detection, support levels, IV check, liquidity check, fundamental catalyst — and CSP pivot conditions) must be at **100%**
 - Test edge cases: empty data, API failures, boundary values on thresholds
 - Do not mock internal logic — only mock at external boundaries (API calls, file I/O)
 - Run tests before marking any task complete:

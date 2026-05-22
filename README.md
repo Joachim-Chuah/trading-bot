@@ -9,13 +9,14 @@ A terminal-based stock screener built around a LEAP options strategy, with a fal
 ### Primary: LEAP Options
 LEAPS (Long-term Equity Anticipation Securities) are used as a capital-efficient stock replacement strategy. The screener filters for stocks that meet strict fundamental and technical criteria before evaluating their options chain for viable LEAP entries.
 
-**LEAP Entry Criteria** *(to be finalized — see open questions)*
-- [ ] Minimum delta threshold (e.g., ≥ 0.70)
-- [ ] DTE range (e.g., 12–24 months out)
-- [ ] Moneyness (deep ITM)
-- [ ] Minimum market cap
-- [ ] Fundamental filters (P/E, revenue growth, debt-to-equity, etc.)
-- [ ] Options liquidity (open interest, bid-ask spread)
+**LEAP Entry Criteria**
+1. **Oversold conditions across multiple timeframes** — RSI, MACD, and/or stochastic showing oversold on at least 2 timeframes (e.g., daily + weekly)
+2. **Price at or near key support** — stock sitting at a meaningful technical level (prior highs, 50/200 MA, demand zone)
+3. **Low IV environment** — cheaper contracts; IV rank/percentile must be low to favor buying options
+4. **Adequate options liquidity** — sufficient open interest and tight bid-ask spreads to enter and exit cleanly
+5. **Strong fundamental catalyst** — a clear reason the stock should recover/grow (earnings, product cycle, sector tailwind, etc.)
+
+*Greek specifics (delta, DTE, etc.) to be defined in a future iteration.*
 
 ### Fallback: Cash-Secured Puts (CSPs)
 When LEAP conditions are not met (e.g., IV too high, stock is range-bound), the screener pivots to evaluating CSP opportunities on the same watchlist.
