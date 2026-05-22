@@ -20,12 +20,50 @@ This is a Python-based stock screener built around a LEAP options strategy with 
 - **UI (future):** React + TypeScript
 - **Tests:** pytest
 
+---
+
 ## Architecture Boundaries
 
 - The **screener** is the only writer to the database — it runs daily and produces picks
 - **FastAPI** is the only reader exposed externally — web apps and the future UI go through it
 - Nothing outside the screener writes to the DB directly
 - Keep screener logic and API logic completely separate — different modules, no shared business logic
+
+---
+
+## Data Source Hierarchy
+
+- **Massive (Stocks + Options Starter)** — primary source for all live screening data
+- **FMP (Starter)** — fundamentals only; do not use for price or options data
+- **yfinance** — historical price backfill beyond Massive's 5-year window; backtesting only, never live screening
+- **CBOE + yfinance `^VIX`** — macro sentiment signals; free, no API key needed
+
+Never mix live screening data with yfinance. yfinance is for backtesting only.
+
+---
+
+## Sentiment Rules
+
+- Sentiment uses exactly **two signals**: Massive news sentiment (stock-level) and VIX + Put/Call ratio (macro-level)
+- Do not add additional sentiment sources without explicit instruction
+- Sentiment feeds the conviction rating — it does not gate or block a pick on its own
+- VIX and Put/Call are part of the **macro kill switch** (Step 0), not just sentiment scoring
+- The macro kill switch runs before any stock is evaluated. If macro conditions are hostile, skip directly to SPY fallback output — do not evaluate individual stocks
+
+---
+
+## Screener Pipeline Order
+
+Steps must execute in this order. Never reorder or skip steps:
+
+```
+0. Macro kill switch   → VIX + Put/Call (hostile = abort to SPY output)
+1. Fundamentals gate   → FMP (weak = discard)
+2. Technical analysis  → Massive Stocks (not aligned = discard)
+3. Options evaluation  → Massive Options (conditions not met = evaluate CSP)
+4. Sentiment scoring   → Massive news vs VIX/Put/Call (feeds conviction)
+5. Output              → pick with conviction, news, fundamentals snapshot
+```
 
 ---
 
@@ -119,7 +157,7 @@ For multi-step tasks, state a brief plan:
 
 - Tests live in `tests/` and mirror the module structure (e.g., `screener/fundamentals.py` → `tests/test_fundamentals.py`)
 - Use `pytest`
-- Aim for **≥ 80% code coverage** across the project; critical strategy logic (LEAP criteria: oversold detection, support levels, IV check, liquidity check, OTM threshold, fundamental catalyst — and CSP pivot conditions) must be at **100%**
+- Aim for **≥ 80% code coverage** across the project; critical strategy logic (LEAP criteria: oversold detection, support levels, IV check, liquidity check, OTM threshold, fundamental catalyst — macro kill switch — CSP pivot conditions) must be at **100%**
 - Test edge cases: empty data, API failures, boundary values on thresholds
 - Do not mock internal logic — only mock at external boundaries (API calls, file I/O)
 - Run tests before marking any task complete:
@@ -132,13 +170,14 @@ For multi-step tasks, state a brief plan:
 ## Architecture Principles
 
 - **No trading execution** — this is read-only. Never add code that places orders.
-- **Screener pipeline is modular** — each step (fundamentals → options → sentiment → output) is independent and testable in isolation
-- **SPY is always the baseline** — any stock output must include its performance relative to SPY; on no-pick days, output SPY technicals instead
+- **Screener pipeline is modular** — each step (macro → fundamentals → technicals → options → sentiment → output) is independent and testable in isolation
+- **SPY is always the baseline** — any stock output must include its performance relative to SPY; on no-pick days or kill switch days, output SPY technicals instead
 - **Intentional output** — if no stocks pass criteria on a given day, the output must say so clearly and fall back to SPY. Do not loosen criteria to produce picks.
 - **Capital-aware** — all position suggestions must respect the $1,000–$1,500 capital constraint and the 2–4 week minimum hold period
 - **News is mandatory context** — every pick must surface recent relevant news; a pick without news context is incomplete
 - **Conviction is required** — every pick must include a conviction rating. Never output a pick without one.
 - **OTM hard limit** — never suggest a LEAP contract more than 10% OTM. Deeper OTM = mostly extrinsic value = theta decay with no real delta exposure.
+- **Macro kill switch is non-negotiable** — if VIX + Put/Call signal a hostile macro environment, the screener must abort individual stock evaluation entirely and output SPY technicals only.
 
 ---
 
@@ -149,6 +188,7 @@ For multi-step tasks, state a brief plan:
 - Do not introduce abstractions until there are at least three concrete use cases for them
 - Do not commit secrets, API keys, or `.env` files
 - Do not skip tests to ship faster
+- Do not add sentiment sources beyond Massive news and VIX/Put/Call without explicit instruction
 
 ---
 
