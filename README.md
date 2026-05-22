@@ -57,10 +57,34 @@ When LEAP conditions are not met (e.g., IV too high, stock is range-bound), the 
 
 | Layer | Technology |
 |---|---|
-| Core / Backend | Python |
+| Screener core | Python |
+| API | FastAPI |
+| Database | PostgreSQL |
+| ORM / Migrations | SQLAlchemy + Alembic |
+| Local dev | Docker Compose |
 | UI (future) | React + TypeScript |
-| Data sources | TBD (yfinance, Polygon.io, etc.) |
-| Twitter/X | TBD (X API v2) |
+| Data — price/technicals | Polygon.io (Stocks Starter) |
+| Data — options/IV | Polygon.io (Options Starter) |
+| Data — fundamentals | Financial Modeling Prep (Starter) |
+| Data — historical backfill | yfinance |
+| Sentiment | TBD (X API v2) |
+
+## Architecture
+
+```
+Daily screener (Python)
+        │
+        ▼ writes
+   PostgreSQL
+        │
+        ▼ reads
+     FastAPI  ◄──── External web app / other services
+        │
+        ▼ (future)
+   React + TypeScript UI
+```
+
+The screener is the **data producer** — it writes picks, run history, and API cache directly to PostgreSQL. FastAPI is the **data layer** — everything that reads data (web app, future UI) goes through it. Nothing outside the screener touches the DB directly.
 
 ---
 
@@ -74,12 +98,21 @@ trading-bot/
 │   ├── sentiment.py         # Twitter/X cross-reference
 │   ├── spy_baseline.py      # SPY comparison logic
 │   └── screener.py          # Main screener pipeline
+├── api/
+│   ├── main.py              # FastAPI app entry point
+│   └── routes/              # API route handlers
+├── db/
+│   ├── models.py            # SQLAlchemy models
+│   └── migrations/          # Alembic migrations
 ├── models/
-│   └── stock.py             # Stock data model
+│   └── stock.py             # Pydantic data models
 ├── tests/
 │   └── ...                  # Unit tests (one per module)
-├── main.py                  # Entry point
+├── docker-compose.yml
+├── Dockerfile
+├── main.py                  # Screener entry point
 ├── requirements.txt
+├── .env.example
 ├── CLAUDE.md
 └── README.md
 ```
@@ -93,9 +126,15 @@ trading-bot/
 git clone https://github.com/Joachim-Chuah/trading-bot.git
 cd trading-bot
 
+# Copy env file and fill in your API keys
+cp .env.example .env
+
+# Start Postgres + FastAPI
+docker compose up -d
+
 # Create and activate virtual environment
 python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
+source venv/bin/activate
 
 # Install dependencies
 pip install -r requirements.txt

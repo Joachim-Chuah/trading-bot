@@ -12,9 +12,20 @@ This is a Python-based stock screener built around a LEAP options strategy with 
 
 ## Tech Stack
 
-- **Backend / Core:** Python
+- **Screener core:** Python
+- **API:** FastAPI
+- **Database:** PostgreSQL
+- **ORM / Migrations:** SQLAlchemy + Alembic
+- **Local dev:** Docker Compose
 - **UI (future):** React + TypeScript
 - **Tests:** pytest
+
+## Architecture Boundaries
+
+- The **screener** is the only writer to the database — it runs daily and produces picks
+- **FastAPI** is the only reader exposed externally — web apps and the future UI go through it
+- Nothing outside the screener writes to the DB directly
+- Keep screener logic and API logic completely separate — different modules, no shared business logic
 
 ---
 
