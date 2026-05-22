@@ -139,28 +139,3 @@ pip install -r requirements.txt
 
 python main.py
 ```
-
----
-
-## Usage
-
-```bash
-# Run daily screen
-python main.py
-
-# Example output
-# ─────────────────────────────────────────────────────────────────────────
-# Daily Screen — 2026-05-22
-# Macro: VIX 22.4 (Neutral) | Put/Call 0.94 (Neutral) → Proceed
-# SPY: +0.42% | RSI: 58 | Trend: Bullish
-# ─────────────────────────────────────────────────────────────────────────
-# [LEAP]  AAPL  | Cap: $3.1T | P/E: 28 | IV Rank: 18 | Strike ≤10% OTM
-#               | News: Bullish | Macro: Neutral → Conviction: ★★★★☆
-#               | Headlines: Earnings beat, new product cycle announced
-# ─────────────────────────────────────────────────────────────────────────
-
-# Kill switch example
-# Macro: VIX 38.1 (Fear) | Put/Call 1.3 (Extreme Fear) → Kill switch triggered
-# SPY Technicals: RSI 62 | 50MA > 200MA | MACD: Bullish cross
-# ─────────────────────────────────────────────────────────────────────────
-```
