@@ -60,8 +60,11 @@ This is a Python-based stock screener built around a LEAP options strategy with 
 
 - **No trading execution** — this is read-only. Never add code that places orders.
 - **Screener pipeline is modular** — each step (fundamentals → options → sentiment → output) is independent and testable in isolation
-- **SPY is always the baseline** — any stock output must include its performance relative to SPY
-- **Intentional output** — if no stocks pass criteria on a given day, the output should say so clearly. Do not loosen criteria to produce picks.
+- **SPY is always the baseline** — any stock output must include its performance relative to SPY; on no-pick days, output SPY technicals instead
+- **Intentional output** — if no stocks pass criteria on a given day, the output must say so clearly and fall back to SPY. Do not loosen criteria to produce picks.
+- **Capital-aware** — all position suggestions must respect the $1,000–$1,500 capital constraint and the 2–4 week minimum hold period
+- **News is mandatory context** — every pick must surface recent relevant news; a pick without news context is incomplete
+- **Conviction is required** — every pick must include a conviction rating. Never output a pick without one.
 
 ---
 

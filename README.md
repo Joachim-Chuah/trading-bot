@@ -27,12 +27,23 @@ When LEAP conditions are not met (e.g., IV too high, stock is range-bound), the 
 
 ---
 
+## Constraints & Capital Rules
+
+- **Capital:** $1,000–$1,500 deployed at a time — position sizing must respect this hard limit
+- **Hold period:** Minimum 2–4 weeks per position — this is not a day trading tool
+- **SPY fallback:** If no stocks meet criteria on a given day, the screener defaults to evaluating SPY technically and outputs that instead of forcing picks
+- **No picks for the sake of picks** — zero output is a valid and correct result
+
+---
+
 ## Features
 
 - **Daily stock picks** — intentional, criteria-driven output. Quality over quantity.
+- **Conviction rating** — each pick includes a conviction score based on fundamentals, technicals, news, and sentiment
+- **News feed** — surfaces recent relevant news per stock; picks must be contextualized against current events
 - **Fundamental data** — market cap, P/E, revenue growth, debt-to-equity, EPS, sector, and more
 - **Options chain analysis** — evaluates LEAP and CSP viability per stock
-- **SPY baseline** — all picks are evaluated relative to SPY for relative strength and context *(baseline metrics TBD)*
+- **SPY baseline + technicals** — all picks evaluated relative to SPY; SPY technicals shown on fallback days
 - **Twitter/X cross-reference** — screens for social sentiment and chatter as a secondary signal *(implementation TBD — sentiment analysis, specific accounts, or mention volume)*
 - **Terminal UI** — clean, readable output in the terminal; React + TypeScript UI planned for a future phase
 
@@ -98,13 +109,25 @@ python main.py
 python main.py
 
 # Example output (terminal)
-# ─────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────
 # Daily Screen — 2026-05-21
-# SPY: +0.42% | Baseline: Neutral
-# ─────────────────────────────────────────────────────
-# [LEAP]  AAPL  | Cap: $3.1T | P/E: 28 | Delta: 0.82 | DTE: 18mo | Sentiment: ↑
+# SPY: +0.42% | RSI: 58 | Trend: Bullish | Baseline: Neutral
+# Capital available: $1,500 | Hold target: 2–4 weeks
+# ─────────────────────────────────────────────────────────────────────────
+# [LEAP]  AAPL  | Cap: $3.1T | P/E: 28 | Delta: 0.82 | DTE: 18mo
+#               | News: Earnings beat, new product cycle
+#               | Conviction: ★★★★☆  (High)
+#
 # [CSP]   META  | Cap: $1.4T | IV Rank: 34 | Strike: $480 | Yield: 1.2%/mo
-# ─────────────────────────────────────────────────────
+#               | News: Ad revenue guidance raised
+#               | Conviction: ★★★☆☆  (Medium)
+# ─────────────────────────────────────────────────────────────────────────
+#
+# --- SPY Fallback day example ---
+# No picks met criteria today.
+# SPY Technical Summary: RSI 62 | 50MA > 200MA | MACD: Bullish cross
+# Suggestion: Hold cash or add to existing SPY position.
+# ─────────────────────────────────────────────────────────────────────────
 ```
 
 ---
