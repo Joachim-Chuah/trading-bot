@@ -19,7 +19,9 @@ LEAPS (Long-term Equity Anticipation Securities) are used as a capital-efficient
 
 > **The cheap LEAP trap:** A $0.50 contract 30% OTM looks attractive but has almost no delta and is almost entirely time value. You need a massive move just to break even. Stay ATM to ≤10% OTM — you pay more upfront but you're actually buying exposure, not hope.
 
-*Greek specifics (delta, DTE, etc.) to be defined in a future iteration.*
+**Greek risk is managed implicitly by the criteria:**
+- Theta (time decay) → controlled by the ≤10% OTM rule. Staying near the money means premium is mostly intrinsic, not extrinsic bleeding away daily.
+- Vega (IV risk) → controlled by the low IV environment criterion. Buying when IV is low means IV crush works in your favour, not against you.
 
 ---
 
@@ -28,7 +30,7 @@ LEAPS (Long-term Equity Anticipation Securities) are used as a capital-efficient
 - **Capital:** $1,000–$1,500 deployed at a time — position sizing must respect this hard limit
 - **Hold period:** Minimum 2–4 weeks per position — this is not a day trading tool
 - **SPY fallback:** If no stocks meet criteria on a given day, the screener outputs SPY technicals instead of forcing picks
-- **No picks for the sake of picks** — zero output is a valid and correct result
+- **Purely criteria-driven** — no hard cap on picks. The criteria decide the count. Zero is valid. That's the point of a screener.
 
 ---
 
@@ -290,7 +292,3 @@ python main.py
 
 ---
 
-## Open Questions
-
-- Greek specifics: delta and DTE targets for LEAP contracts TBD
-- Daily picks: hard cap on number of picks, or purely criteria-driven?
