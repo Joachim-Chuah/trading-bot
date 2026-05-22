@@ -1,6 +1,6 @@
 # Trading Screener
 
-A terminal-based stock screener built around a LEAP options strategy, with a fallback to Cash-Secured Puts (CSPs). Designed to surface intentional, high-conviction trade ideas daily — not noise.
+A terminal-based stock screener built around a LEAP options strategy. Designed to surface intentional, high-conviction trade ideas daily — not noise.
 
 ---
 
@@ -20,14 +20,6 @@ LEAPS (Long-term Equity Anticipation Securities) are used as a capital-efficient
 > **The cheap LEAP trap:** A $0.50 contract 30% OTM looks attractive but has almost no delta and is almost entirely time value. You need a massive move just to break even. Stay ATM to ≤10% OTM — you pay more upfront but you're actually buying exposure, not hope.
 
 *Greek specifics (delta, DTE, etc.) to be defined in a future iteration.*
-
-### Fallback: Cash-Secured Puts (CSPs)
-When LEAP conditions are not met — specifically when price action is range-bound — the screener pivots to evaluating CSP opportunities on the same watchlist.
-
-**CSP Pivot Conditions**
-- Stock is trading sideways / range-bound (primary trigger)
-- IV rank / IV percentile threshold *(specific value TBD)*
-- Premium yield meets minimum threshold *(specific value TBD)*
 
 ---
 
@@ -62,7 +54,7 @@ Step 2 — Technical Analysis (Massive Stocks)
          ▼ technicals pass
 Step 3 — Options Evaluation (Massive Options)
          Low IV environment, adequate liquidity, strike ≤10% OTM.
-         Options conditions not met → evaluate for CSP instead.
+         Options conditions not met → discard ticker.
          │
          ▼ options pass
 Step 4 — Sentiment Comparison
@@ -111,7 +103,7 @@ The ideal LEAP setup: stock-level news turning positive while the macro is still
 - **Conviction rating** — every pick rated based on fundamentals, technicals, options conditions, and sentiment comparison
 - **News context** — mandatory for every pick; surfaces the Massive news sentiment score and recent headlines
 - **Fundamental data** — market cap, P/E, revenue growth, debt-to-equity, EPS, sector
-- **Options chain analysis** — evaluates LEAP and CSP viability; enforces ≤10% OTM hard limit
+- **Options chain analysis** — evaluates LEAP viability; enforces ≤10% OTM hard limit
 - **Macro kill switch** — VIX and Put/Call checked before any stock evaluation; hostile macro = immediate SPY fallback
 - **SPY baseline + technicals** — all picks include SPY relative performance; SPY technicals shown on fallback days
 - **Terminal UI** — clean output in the terminal; React + TypeScript UI planned for a future phase
@@ -217,7 +209,7 @@ The screener is the **data producer** — writes picks, run history, and API cac
 trading-bot/
 ├── screener/
 │   ├── fundamentals.py      # FMP fundamentals gate
-│   ├── options.py           # LEAP and CSP evaluation
+│   ├── options.py           # LEAP evaluation
 │   ├── technicals.py        # RSI, MACD, support level detection
 │   ├── sentiment.py         # Massive news sentiment + VIX/Put/Call
 │   ├── macro.py             # Kill switch — VIX + Put/Call check
@@ -287,9 +279,6 @@ python main.py
 #               | News sentiment: Bullish | Macro: Neutral → Conviction: ★★★★☆
 #               | Headlines: Earnings beat, new product cycle announced
 #
-# [CSP]   META  | Cap: $1.4T | IV Rank: 34 | Strike: $480 | Yield: 1.2%/mo
-#               | News sentiment: Bullish | Macro: Neutral → Conviction: ★★★☆☆
-#               | Headlines: Ad revenue guidance raised
 # ─────────────────────────────────────────────────────────────────────────
 #
 # --- SPY Fallback example ---
@@ -303,6 +292,5 @@ python main.py
 
 ## Open Questions
 
-- CSP specific thresholds: IV rank cutoff and minimum premium yield TBD
 - Greek specifics: delta and DTE targets for LEAP contracts TBD
 - Daily picks: hard cap on number of picks, or purely criteria-driven?

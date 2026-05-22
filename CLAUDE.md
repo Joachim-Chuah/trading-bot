@@ -6,7 +6,7 @@ Guidelines for Claude when working in this repository.
 
 ## Project Context
 
-This is a Python-based stock screener built around a LEAP options strategy with a CSP fallback. It is a screener, not a trading bot — it surfaces ideas, it does not execute trades. The UI is terminal-first; a React + TypeScript frontend may be added later.
+This is a Python-based stock screener built around a LEAP options strategy. It is a screener, not a trading bot — it surfaces ideas, it does not execute trades. The UI is terminal-first; a React + TypeScript frontend may be added later.
 
 ---
 
@@ -60,7 +60,7 @@ Steps must execute in this order. Never reorder or skip steps:
 0. Macro kill switch   → VIX + Put/Call (hostile = abort to SPY output)
 1. Fundamentals gate   → FMP (weak = discard)
 2. Technical analysis  → Massive Stocks (not aligned = discard)
-3. Options evaluation  → Massive Options (conditions not met = evaluate CSP)
+3. Options evaluation  → Massive Options (conditions not met = discard)
 4. Sentiment scoring   → Massive news vs VIX/Put/Call (feeds conviction)
 5. Output              → pick with conviction, news, fundamentals snapshot
 ```
@@ -157,7 +157,7 @@ For multi-step tasks, state a brief plan:
 
 - Tests live in `tests/` and mirror the module structure (e.g., `screener/fundamentals.py` → `tests/test_fundamentals.py`)
 - Use `pytest`
-- Aim for **≥ 80% code coverage** across the project; critical strategy logic (LEAP criteria: oversold detection, support levels, IV check, liquidity check, OTM threshold, fundamental catalyst — macro kill switch — CSP pivot conditions) must be at **100%**
+- Aim for **≥ 80% code coverage** across the project; critical strategy logic (LEAP criteria: oversold detection, support levels, IV check, liquidity check, OTM threshold, fundamental catalyst — and macro kill switch) must be at **100%**
 - Test edge cases: empty data, API failures, boundary values on thresholds
 - Do not mock internal logic — only mock at external boundaries (API calls, file I/O)
 - Run tests before marking any task complete:
@@ -170,7 +170,7 @@ For multi-step tasks, state a brief plan:
 ## Architecture Principles
 
 - **No trading execution** — this is read-only. Never add code that places orders.
-- **Screener pipeline is modular** — each step (macro → fundamentals → technicals → options → sentiment → output) is independent and testable in isolation
+- **Screener pipeline is modular** — each step (macro kill switch → fundamentals → technicals → options → sentiment → output) is independent and testable in isolation
 - **SPY is always the baseline** — any stock output must include its performance relative to SPY; on no-pick days or kill switch days, output SPY technicals instead
 - **Intentional output** — if no stocks pass criteria on a given day, the output must say so clearly and fall back to SPY. Do not loosen criteria to produce picks.
 - **Capital-aware** — all position suggestions must respect the $1,000–$1,500 capital constraint and the 2–4 week minimum hold period
