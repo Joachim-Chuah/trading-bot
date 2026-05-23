@@ -58,3 +58,19 @@ def get_options_chain(ticker: str) -> list[dict[str, Any]]:
     path = f"/v3/snapshot/options/{ticker}"
     data = _get(path, {"limit": 250})
     return data.get("results", [])
+
+
+def get_nyse_tickers() -> list[str]:
+    """Return all active common stocks (type=CS) listed on NYSE."""
+    tickers: list[str] = []
+    params = {"market": "stocks", "exchange": "XNYS", "type": "CS", "active": "true", "limit": 1000}
+    data = _get("/v3/reference/tickers", params)
+    while True:
+        tickers.extend(r["ticker"] for r in data.get("results", []))
+        next_url = data.get("next_url")
+        if not next_url:
+            break
+        response = httpx.get(next_url, params={"apiKey": _API_KEY}, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+    return tickers

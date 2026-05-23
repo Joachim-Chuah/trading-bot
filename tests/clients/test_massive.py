@@ -8,6 +8,7 @@ from clients.massive import (
     get_macd,
     get_news,
     get_options_chain,
+    get_nyse_tickers,
 )
 from datetime import date
 
@@ -119,4 +120,31 @@ def test_get_options_chain(mock_get):
 def test_get_options_chain_empty(mock_get):
     mock_get.return_value = mock_response({"results": []})
     result = get_options_chain("AAPL")
+    assert result == []
+
+
+@patch("clients.massive.httpx.get")
+def test_get_nyse_tickers_single_page(mock_get):
+    mock_get.return_value = mock_response({
+        "results": [{"ticker": "AAPL"}, {"ticker": "IBM"}],
+    })
+    result = get_nyse_tickers()
+    assert result == ["AAPL", "IBM"]
+    assert mock_get.call_count == 1
+
+
+@patch("clients.massive.httpx.get")
+def test_get_nyse_tickers_paginates(mock_get):
+    page1 = mock_response({"results": [{"ticker": "AAPL"}], "next_url": "https://api.polygon.io/v3/reference/tickers?cursor=abc"})
+    page2 = mock_response({"results": [{"ticker": "IBM"}]})
+    mock_get.side_effect = [page1, page2]
+    result = get_nyse_tickers()
+    assert result == ["AAPL", "IBM"]
+    assert mock_get.call_count == 2
+
+
+@patch("clients.massive.httpx.get")
+def test_get_nyse_tickers_empty(mock_get):
+    mock_get.return_value = mock_response({"results": []})
+    result = get_nyse_tickers()
     assert result == []

@@ -163,25 +163,43 @@ def _list_watchlist() -> None:
 
 
 def run_backtest_cmd(tickers: list[str]) -> None:
-    if not tickers:
+    if tickers == ["NYSE"]:
+        from clients.massive import get_nyse_tickers
+        print("Fetching NYSE ticker list...")
+        tickers = get_nyse_tickers()
+        print(f"Found {len(tickers)} common stocks.")
+    elif not tickers:
         tickers = _get_tickers()
+
     if not tickers:
         print("No tickers specified and watchlist is empty.")
         return
+
+    large_run = len(tickers) > 20
 
     print("\n" + "═" * 60)
     print(f"  Backtest — {date.today()}  ({len(tickers)} ticker{'s' if len(tickers) != 1 else ''})")
     print("═" * 60)
 
-    all_results: list[BacktestResult] = []
-    for ticker in tickers:
-        print(f"  Running {ticker}...", end="\r")
-        result = run_backtest(ticker)
-        all_results.append(result)
-        _print_backtest_result(result)
-
-    if len(all_results) > 1:
-        _print_backtest_aggregate(all_results)
+    if large_run:
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        results: list[BacktestResult] = []
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            futures = {executor.submit(run_backtest, t): t for t in tickers}
+            for i, future in enumerate(as_completed(futures), 1):
+                results.append(future.result())
+                if i % 50 == 0 or i == len(tickers):
+                    print(f"  Progress: {i}/{len(tickers)}...   ", end="\r")
+        print()
+        _print_backtest_summary(results)
+    else:
+        results = []
+        for ticker in tickers:
+            result = run_backtest(ticker)
+            results.append(result)
+            _print_backtest_result(result)
+        if len(results) > 1:
+            _print_backtest_aggregate(results)
 
 
 def _print_backtest_result(result: BacktestResult) -> None:
@@ -189,8 +207,9 @@ def _print_backtest_result(result: BacktestResult) -> None:
     if n == 0:
         print(f"  {result.ticker:<6}  No trades generated.")
         return
+    wins = sum(1 for t in result.trades if t.pnl_pct > 0)
     print(f"\n  {result.ticker}  —  {n} trade{'s' if n != 1 else ''}")
-    print(f"  Hit rate:   {result.hit_rate * 100:.1f}%  ({sum(1 for t in result.trades if t.pnl_pct > 0)}/{n})")
+    print(f"  Hit rate:   {result.hit_rate * 100:.1f}%  ({wins}/{n})")
     print(f"  Avg return: {result.avg_return_pct * 100:+.1f}%")
     print(f"  Avg hold:   {result.avg_hold_days:.0f} days")
     best = max(result.trades, key=lambda t: t.pnl_pct)
@@ -209,6 +228,39 @@ def _print_backtest_aggregate(results: list[BacktestResult]) -> None:
     print(f"  AGGREGATE  ({len(results)} tickers, {len(all_trades)} trades)")
     print(f"  Hit rate:   {hit_rate * 100:.1f}%")
     print(f"  Avg return: {avg_return * 100:+.1f}%")
+    print("═" * 60 + "\n")
+
+
+def _print_backtest_summary(results: list[BacktestResult]) -> None:
+    """Aggregate view for large runs (NYSE-scale)."""
+    active = [r for r in results if r.trades]
+    all_trades = [t for r in active for t in r.trades]
+
+    if not all_trades:
+        print("  No trades generated across any ticker.")
+        print("═" * 60 + "\n")
+        return
+
+    hit_rate = sum(1 for t in all_trades if t.pnl_pct > 0) / len(all_trades)
+    avg_return = sum(t.pnl_pct for t in all_trades) / len(all_trades)
+
+    print(f"  Tickers with trades: {len(active)}/{len(results)}")
+    print(f"  Total trades:        {len(all_trades)}")
+    print(f"  Hit rate:            {hit_rate * 100:.1f}%")
+    print(f"  Avg LEAP return:     {avg_return * 100:+.1f}%")
+    print("─" * 60)
+
+    ranked = sorted(active, key=lambda r: r.avg_return_pct, reverse=True)
+    print("  Top 10 performers:")
+    for r in ranked[:10]:
+        wins = sum(1 for t in r.trades if t.pnl_pct > 0)
+        print(f"    {r.ticker:<6}  {r.avg_return_pct * 100:+.1f}%  "
+              f"({r.total_trades} trades, {wins}/{r.total_trades} wins)")
+    print("  Bottom 10 performers:")
+    for r in ranked[-10:]:
+        wins = sum(1 for t in r.trades if t.pnl_pct > 0)
+        print(f"    {r.ticker:<6}  {r.avg_return_pct * 100:+.1f}%  "
+              f"({r.total_trades} trades, {wins}/{r.total_trades} wins)")
     print("═" * 60 + "\n")
 
 
