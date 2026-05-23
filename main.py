@@ -10,6 +10,7 @@ from db.models import Watchlist
 from models.stock import Pick, ScreenerResult
 from screener.screener import run_screener
 from screener.universe import UNIVERSE
+from screener.backtest import run_backtest, BacktestResult
 
 ET = ZoneInfo("America/New_York")
 
@@ -161,6 +162,56 @@ def _list_watchlist() -> None:
         db.close()
 
 
+def run_backtest_cmd(tickers: list[str]) -> None:
+    if not tickers:
+        tickers = _get_tickers()
+    if not tickers:
+        print("No tickers specified and watchlist is empty.")
+        return
+
+    print("\n" + "═" * 60)
+    print(f"  Backtest — {date.today()}  ({len(tickers)} ticker{'s' if len(tickers) != 1 else ''})")
+    print("═" * 60)
+
+    all_results: list[BacktestResult] = []
+    for ticker in tickers:
+        print(f"  Running {ticker}...", end="\r")
+        result = run_backtest(ticker)
+        all_results.append(result)
+        _print_backtest_result(result)
+
+    if len(all_results) > 1:
+        _print_backtest_aggregate(all_results)
+
+
+def _print_backtest_result(result: BacktestResult) -> None:
+    n = result.total_trades
+    if n == 0:
+        print(f"  {result.ticker:<6}  No trades generated.")
+        return
+    print(f"\n  {result.ticker}  —  {n} trade{'s' if n != 1 else ''}")
+    print(f"  Hit rate:   {result.hit_rate * 100:.1f}%  ({sum(1 for t in result.trades if t.pnl_pct > 0)}/{n})")
+    print(f"  Avg return: {result.avg_return_pct * 100:+.1f}%")
+    print(f"  Avg hold:   {result.avg_hold_days:.0f} days")
+    best = max(result.trades, key=lambda t: t.pnl_pct)
+    worst = min(result.trades, key=lambda t: t.pnl_pct)
+    print(f"  Best:       {best.pnl_pct * 100:+.1f}%  ({best.entry_date} → {best.exit_date})")
+    print(f"  Worst:      {worst.pnl_pct * 100:+.1f}%  ({worst.entry_date} → {worst.exit_date})")
+
+
+def _print_backtest_aggregate(results: list[BacktestResult]) -> None:
+    all_trades = [t for r in results for t in r.trades]
+    if not all_trades:
+        return
+    hit_rate = sum(1 for t in all_trades if t.pnl_pct > 0) / len(all_trades)
+    avg_return = sum(t.pnl_pct for t in all_trades) / len(all_trades)
+    print("\n" + "─" * 60)
+    print(f"  AGGREGATE  ({len(results)} tickers, {len(all_trades)} trades)")
+    print(f"  Hit rate:   {hit_rate * 100:.1f}%")
+    print(f"  Avg return: {avg_return * 100:+.1f}%")
+    print("═" * 60 + "\n")
+
+
 def init_db() -> None:
     Base.metadata.create_all(bind=engine)
 
@@ -170,6 +221,7 @@ if __name__ == "__main__":
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--now", action="store_true", help="Run live screener immediately")
     group.add_argument("--research", action="store_true", help="Run research mode immediately")
+    group.add_argument("--backtest", nargs="*", metavar="TICKER", help="Run backtest (optionally specify tickers; defaults to watchlist)")
     group.add_argument("--add", metavar="TICKER", help="Add a ticker to the watchlist")
     group.add_argument("--remove", metavar="TICKER", help="Remove a ticker from the watchlist")
     group.add_argument("--watchlist", action="store_true", help="Show current watchlist")
@@ -181,6 +233,8 @@ if __name__ == "__main__":
         run_live()
     elif args.research:
         run_research()
+    elif args.backtest is not None:
+        run_backtest_cmd(args.backtest)
     elif args.add:
         _add_ticker(args.add)
     elif args.remove:
