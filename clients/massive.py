@@ -70,7 +70,7 @@ def get_nyse_tickers() -> list[str]:
         next_url = data.get("next_url")
         if not next_url:
             break
-        response = httpx.get(next_url, params={"apiKey": _API_KEY}, timeout=10)
+        response = httpx.get(next_url, params={"apiKey": _API_KEY}, timeout=30)
         response.raise_for_status()
         data = response.json()
     return tickers
