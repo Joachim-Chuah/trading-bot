@@ -5,6 +5,7 @@ from models.stock import (
     FundamentalsData,
     TechnicalsData,
     OptionsData,
+    SentimentData,
     MacroSnapshot,
     Pick,
     ScreenerResult,
@@ -30,21 +31,37 @@ def make_options() -> OptionsData:
     )
 
 
-def make_macro() -> MacroSnapshot:
-    return MacroSnapshot(vix=22.4, put_call_ratio=0.94, signal="neutral", spy_price=520.0, spy_rsi=58.0, spy_trend="bullish")
+def make_sentiment(
+    massive: str = "bullish",
+    finbert: str = "bullish",
+    confidence: float = 0.91,
+    signal: str = "bullish",
+) -> SentimentData:
+    return SentimentData(
+        massive_sentiment=massive,
+        finbert_sentiment=finbert,
+        finbert_confidence=confidence,
+        sentiment_signal=signal,
+    )
+
+
+def make_macro(put_call: float | None = 0.94) -> MacroSnapshot:
+    return MacroSnapshot(vix=22.4, put_call_ratio=put_call, signal="neutral", spy_price=520.0, spy_rsi=58.0, spy_trend="bullish")
 
 
 def make_pick(ticker: str = "AAPL", conviction: int = 4) -> Pick:
     return Pick(
         ticker=ticker,
         conviction=conviction,
-        news_sentiment="bullish",
+        sentiment=make_sentiment(),
         news_headlines=["Earnings beat expectations", "New product cycle announced"],
         fundamentals=make_fundamentals(),
         options_data=make_options(),
         technicals=make_technicals(),
     )
 
+
+# --- FundamentalsData ---
 
 def test_fundamentals_data_valid():
     f = make_fundamentals()
@@ -61,6 +78,8 @@ def test_fundamentals_data_optional_fields_default_none():
     assert f.sector is None
 
 
+# --- TechnicalsData ---
+
 def test_technicals_data_valid():
     t = make_technicals()
     assert t.rsi_daily == 32.0
@@ -73,6 +92,8 @@ def test_technicals_data_invalid_macd_signal():
         TechnicalsData(rsi_daily=32.0, rsi_weekly=38.0, macd_signal="strong_buy", at_support=True, price=194.5)
 
 
+# --- OptionsData ---
+
 def test_options_data_valid():
     o = make_options()
     assert o.iv_rank == 18.0
@@ -80,10 +101,52 @@ def test_options_data_valid():
     assert o.expiration == date(2027, 1, 15)
 
 
+# --- SentimentData ---
+
+def test_sentiment_data_agreement():
+    s = make_sentiment(massive="bullish", finbert="bullish", signal="bullish")
+    assert s.massive_sentiment == "bullish"
+    assert s.finbert_sentiment == "bullish"
+    assert s.sentiment_signal == "bullish"
+
+
+def test_sentiment_data_divergence_mixed():
+    s = make_sentiment(massive="bullish", finbert="bearish", signal="mixed")
+    assert s.sentiment_signal == "mixed"
+
+
+def test_sentiment_data_invalid_signal():
+    with pytest.raises(ValidationError):
+        SentimentData(
+            massive_sentiment="bullish",
+            finbert_sentiment="bullish",
+            finbert_confidence=0.9,
+            sentiment_signal="very_bullish",
+        )
+
+
+def test_sentiment_data_invalid_massive():
+    with pytest.raises(ValidationError):
+        make_sentiment(massive="positive")
+
+
+def test_sentiment_data_invalid_finbert():
+    with pytest.raises(ValidationError):
+        make_sentiment(finbert="negative")
+
+
+# --- MacroSnapshot ---
+
 def test_macro_snapshot_valid():
     m = make_macro()
     assert m.signal == "neutral"
-    assert m.spy_trend == "bullish"
+    assert m.put_call_ratio == 0.94
+
+
+def test_macro_snapshot_without_put_call():
+    m = make_macro(put_call=None)
+    assert m.put_call_ratio is None
+    assert m.vix == 22.4
 
 
 def test_macro_snapshot_invalid_signal():
@@ -91,11 +154,13 @@ def test_macro_snapshot_invalid_signal():
         MacroSnapshot(vix=22.4, put_call_ratio=0.94, signal="unknown", spy_price=520.0, spy_rsi=58.0, spy_trend="bullish")
 
 
+# --- Pick ---
+
 def test_pick_valid():
     p = make_pick()
     assert p.ticker == "AAPL"
     assert p.conviction == 4
-    assert p.news_sentiment == "bullish"
+    assert p.sentiment.sentiment_signal == "bullish"
     assert len(p.news_headlines) == 2
 
 
@@ -119,18 +184,7 @@ def test_pick_conviction_above_maximum():
         make_pick(conviction=6)
 
 
-def test_pick_invalid_news_sentiment():
-    with pytest.raises(ValidationError):
-        Pick(
-            ticker="AAPL",
-            conviction=4,
-            news_sentiment="very_bullish",
-            news_headlines=[],
-            fundamentals=make_fundamentals(),
-            options_data=make_options(),
-            technicals=make_technicals(),
-        )
-
+# --- ScreenerResult ---
 
 def test_screener_result_with_picks():
     result = ScreenerResult(
@@ -154,3 +208,10 @@ def test_screener_result_spy_fallback():
     assert result.spy_fallback is True
     assert result.macro.signal == "hostile"
     assert result.picks == []
+
+
+def test_screener_result_spy_fallback_no_put_call():
+    macro = MacroSnapshot(vix=38.1, put_call_ratio=None, signal="hostile", spy_price=510.0, spy_rsi=62.0, spy_trend="neutral")
+    result = ScreenerResult(run_date=date.today(), macro=macro, picks=[], spy_fallback=True)
+    assert result.macro.put_call_ratio is None
+    assert result.spy_fallback is True

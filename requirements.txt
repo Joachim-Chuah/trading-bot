@@ -9,5 +9,9 @@ httpx
 yfinance
 pandas
 numpy
+torch
+transformers
+beautifulsoup4
+apscheduler
 pytest
 pytest-cov

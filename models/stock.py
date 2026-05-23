@@ -29,9 +29,16 @@ class OptionsData(BaseModel):
     contract_symbol: str
 
 
+class SentimentData(BaseModel):
+    massive_sentiment: Literal["bullish", "neutral", "bearish"]
+    finbert_sentiment: Literal["bullish", "neutral", "bearish"]
+    finbert_confidence: float
+    sentiment_signal: Literal["bullish", "neutral", "bearish", "mixed"]
+
+
 class MacroSnapshot(BaseModel):
     vix: float
-    put_call_ratio: float
+    put_call_ratio: float | None = None
     signal: Literal["favorable", "neutral", "hostile"]
     spy_price: float
     spy_rsi: float
@@ -41,7 +48,7 @@ class MacroSnapshot(BaseModel):
 class Pick(BaseModel):
     ticker: str
     conviction: int = Field(ge=1, le=5)
-    news_sentiment: Literal["bullish", "neutral", "bearish"]
+    sentiment: SentimentData
     news_headlines: list[str]
     fundamentals: FundamentalsData
     options_data: OptionsData

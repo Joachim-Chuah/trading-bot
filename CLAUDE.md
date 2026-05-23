@@ -14,11 +14,12 @@ This is a Python-based stock screener built around a LEAP options strategy. It i
 
 - **Screener core:** Python
 - **API:** FastAPI
-- **Database:** PostgreSQL
+- **Database:** PostgreSQL (Neon)
 - **ORM / Migrations:** SQLAlchemy + Alembic
-- **Local dev:** Docker Compose
+- **Scheduler:** APScheduler
 - **UI (future):** React + TypeScript
 - **Tests:** pytest
+- **Sentiment:** FinBERT via `transformers` + `torch` (`ProsusAI/finbert`)
 
 ---
 
@@ -35,20 +36,45 @@ This is a Python-based stock screener built around a LEAP options strategy. It i
 
 - **Massive (Stocks + Options Starter)** — primary source for all live screening data
 - **FMP (Starter)** — fundamentals only; do not use for price or options data
-- **yfinance** — historical price backfill beyond Massive's 5-year window; backtesting only, never live screening
-- **CBOE + yfinance `^VIX`** — macro sentiment signals; free, no API key needed
+- **yfinance `^VIX`** — primary macro fear/risk-off signal; free, no API key needed
+- **CBOE put/call ratio** — secondary macro signal; scraped from CBOE daily stats page; optional — graceful fallback to VIX-only if unavailable
+- **yfinance (price)** — historical price backfill beyond Massive's 5-year window; backtesting only, never live screening
 
-Never mix live screening data with yfinance. yfinance is for backtesting only.
+Never use yfinance for live stock price or options data. yfinance for price is backtesting only.
 
 ---
 
 ## Sentiment Rules
 
-- Sentiment uses exactly **two signals**: Massive news sentiment (stock-level) and VIX + Put/Call ratio (macro-level)
-- Do not add additional sentiment sources without explicit instruction
-- Sentiment feeds the conviction rating — it does not gate or block a pick on its own
-- VIX and Put/Call are part of the **macro kill switch** (Step 0), not just sentiment scoring
-- The macro kill switch runs before any stock is evaluated. If macro conditions are hostile, skip directly to SPY fallback output — do not evaluate individual stocks
+Sentiment is evaluated in four layers. Each layer feeds into the final conviction score — sentiment does not gate or block a pick on its own.
+
+### Layer 1 — Stock News Sentiment
+- Pull news articles and headlines from Massive
+- Score each headline with FinBERT (`ProsusAI/finbert`) — produces `bullish / neutral / bearish` + confidence score
+- Compare against Massive's pre-scored sentiment on the same articles
+- If both agree → increase signal weight and confidence
+- If they diverge → classify as `mixed`; reduce conviction weight; do not force a bullish or bearish label
+- Factor in article recency (`published_utc`), source quality (publisher), and relevance (FinBERT confidence as proxy)
+
+### Layer 2 — Market Confirmation
+- Price move after article: Massive snapshot price vs. article publish time — does the stock move in the implied direction? Skip for articles without sufficient post-publish time.
+- Volume vs. average volume: elevated volume confirms the move is meaningful
+- Sector ETF move: same Massive stocks endpoint on the relevant sector ETF (XLK, XLE, etc.)
+- Broader index move: SPY — already pulled for baseline
+
+### Layer 3 — Macro Risk
+- VIX via yfinance `^VIX` — primary market fear/risk-off indicator; always required
+- CBOE put/call ratio — secondary confirmation; captures options positioning rather than implied volatility alone
+- Attempt CBOE scrape on each run; if unavailable, proceed with VIX only — `put_call_ratio` is nullable
+- The macro kill switch (Step 0) runs on this layer before any stock is evaluated
+
+### Layer 4 — Final Conviction
+- `sentiment_signal`: resolved label — `bullish / neutral / bearish / mixed`
+- `confidence`: how clean and consistent the data is (Massive + FinBERT agreement, recency)
+- `conviction`: how much the market/macro confirms the stock-level signal
+  - Stock bullish + macro risk-on/neutral → conviction increases
+  - Stock bullish + macro risk-off → sentiment stays bullish, conviction reduced
+  - Stock bearish + any macro → low conviction; pick likely already weak from earlier pipeline steps
 
 ---
 
@@ -61,7 +87,7 @@ Steps must execute in this order. Never reorder or skip steps:
 1. Fundamentals gate   → FMP (weak = discard)
 2. Technical analysis  → Massive Stocks (not aligned = discard)
 3. Options evaluation  → Massive Options (conditions not met = discard)
-4. Sentiment scoring   → Massive news vs VIX/Put/Call (feeds conviction)
+4. Sentiment scoring   → 4-layer: stock news (Massive + FinBERT) → market confirmation → macro risk → final conviction
 5. Output              → pick with conviction, news, fundamentals snapshot
 ```
 
@@ -177,7 +203,8 @@ For multi-step tasks, state a brief plan:
 - **News is mandatory context** — every pick must surface recent relevant news; a pick without news context is incomplete
 - **Conviction is required** — every pick must include a conviction rating. Never output a pick without one.
 - **OTM hard limit** — never suggest a LEAP contract more than 10% OTM. Deeper OTM = mostly extrinsic value = theta decay with no real delta exposure.
-- **Macro kill switch is non-negotiable** — if VIX + Put/Call signal a hostile macro environment, the screener must abort individual stock evaluation entirely and output SPY technicals only.
+- **Macro kill switch is non-negotiable** — if macro conditions are hostile (VIX primary, CBOE put/call supplementary), the screener must abort individual stock evaluation entirely and output SPY technicals only.
+- **Two run modes** — `live` (full pipeline, runs Mon–Fri at 10:30am and 2:00pm ET via APScheduler) and `research` (weekend research: news, watchlist review, backtesting, weekly prep). Never run live options evaluation in research mode.
 
 ---
 
@@ -188,7 +215,7 @@ For multi-step tasks, state a brief plan:
 - Do not introduce abstractions until there are at least three concrete use cases for them
 - Do not commit secrets, API keys, or `.env` files
 - Do not skip tests to ship faster
-- Do not add sentiment sources beyond Massive news and VIX/Put/Call without explicit instruction
+- Do not add sentiment sources beyond the four defined layers (Massive news, FinBERT, VIX, CBOE put/call) without explicit instruction
 
 ---
 
