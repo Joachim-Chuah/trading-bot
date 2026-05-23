@@ -1,5 +1,5 @@
 import argparse
-from datetime import datetime
+from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
 from apscheduler.schedulers.blocking import BlockingScheduler
