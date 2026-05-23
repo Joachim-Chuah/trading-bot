@@ -35,7 +35,7 @@ This is a Python-based stock screener built around a LEAP options strategy. It i
 ## Data Source Hierarchy
 
 - **Massive (Stocks + Options Starter)** — primary source for all live screening data
-- **FMP (Starter)** — fundamentals only; do not use for price or options data
+- **FMP (Starter)** — fundamentals only; do not use for price or options data. Base URL: `https://financialmodelingprep.com/stable` (v3 endpoints are legacy and blocked for new accounts)
 - **yfinance `^VIX`** — primary macro fear/risk-off signal; free, no API key needed
 - **CBOE put/call ratio** — secondary macro signal; scraped from CBOE daily stats page; optional — graceful fallback to VIX-only if unavailable
 - **yfinance (price)** — historical price backfill beyond Massive's 5-year window; backtesting only, never live screening
