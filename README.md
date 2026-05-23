@@ -147,9 +147,9 @@ python3 main.py                  # start scheduler (Mon-Fri 10:30am + 2:00pm, Sa
 python3 main.py --now            # run live screener immediately
 python3 main.py --research       # run weekend research scan immediately
 
-python3 main.py --backtest           # backtest watchlist (10yr history, Black-Scholes LEAP P&L)
-python3 main.py --backtest AAPL NVDA # backtest specific tickers
-python3 main.py --backtest NYSE      # backtest all NYSE common stocks (~2,000 tickers, ~5-10 min)
+python3 main.py --backtest              # backtest watchlist (10yr history, Black-Scholes LEAP P&L)
+python3 main.py --backtest AAPL NVDA    # backtest specific tickers
+python3 main.py --backtest SECTORS      # backtest stocks across all 11 SPDR sectors
 
 python3 main.py --add AAPL       # add ticker to watchlist
 python3 main.py --remove AAPL    # remove ticker from watchlist

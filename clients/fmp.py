@@ -35,3 +35,13 @@ def get_income_statement(ticker: str) -> dict[str, Any]:
 def get_key_metrics(ticker: str) -> dict[str, Any]:
     data = _get("/key-metrics", {"symbol": ticker, "limit": 1})
     return data[0] if data else {}
+
+
+def get_stock_screener(sector: str, min_market_cap: int = 2_000_000_000) -> list[dict[str, Any]]:
+    data = _get("/stock-screener", {
+        "sector": sector,
+        "marketCapMoreThan": min_market_cap,
+        "isActivelyTrading": "true",
+        "limit": 200,
+    })
+    return data if isinstance(data, list) else []

@@ -7,9 +7,8 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 from db.database import Base, engine, SessionLocal
 from db import models  # noqa: F401
 from db.models import Watchlist
-from models.stock import Pick, ScreenerResult
+from models.stock import FundamentalsData, Pick, ScreenerResult
 from screener.screener import run_screener
-from screener.universe import UNIVERSE
 from screener.backtest import run_backtest, BacktestResult
 
 ET = ZoneInfo("America/New_York")
@@ -74,25 +73,42 @@ def _print_pick(pick: Pick) -> None:
 def run_live() -> None:
     tickers = _get_tickers()
     if not tickers:
-        print("[screener] Watchlist is empty. Add tickers with: python3 main.py --add TICKER")
+        print("[screener] Watchlist is empty. Add tickers with: python3 main.py --watch TICKER")
         return
     result = run_screener(tickers)
     _print_result(result, title="Daily Screen")
+    from clients.claude_client import generate_report
+    from clients.email_client import send_report
+    structured = _build_screener_data(result)
+    report = generate_report(structured, report_type="live")
+    send_report(
+        subject=f"Daily Screen — {datetime.now(ET).strftime('%b %d %I:%M %p ET')}",
+        body=report,
+        filename=f"screen_{date.today()}.txt",
+        raw_data=structured,
+    )
 
 
 def run_research() -> None:
     from clients.fmp import get_profile, get_ratios, get_income_statement
+    from screener.sector import score_sectors, get_sector_universe
     from screener.fundamentals import evaluate_fundamentals
 
-    watchlist = set(_get_tickers())
-    result = run_screener(UNIVERSE)
-    _print_result(result, title="Weekend Research — Universe Scan")
+    ranked = score_sectors()
+    top_sectors = [s for s, _ in ranked[:3]]
+    print("\n  Sector Scores (selecting top 3):")
+    for sector, score in ranked:
+        mark = " ←" if sector in top_sectors else ""
+        print(f"    {sector:<25} {score:+.2f}{mark}")
 
-    # Surface fundamental candidates: passed fundamentals but didn't make it to a pick
-    # These are worth adding to your watchlist and waiting for the right entry
+    universe = get_sector_universe(top_n=3)
+    result = run_screener(universe)
+    _print_result(result, title="Weekend Research — Sector Scan")
+
     picks_found = {p.ticker for p in result.picks}
+    watchlist = set(_get_tickers())
     candidates = []
-    for ticker in UNIVERSE:
+    for ticker in universe:
         if ticker in picks_found or ticker in watchlist:
             continue
         try:
@@ -115,6 +131,17 @@ def run_research() -> None:
             eps = f"EPS: ${fund.eps:.2f}" if fund.eps else ""
             print(f"  {ticker:<6}  Cap: ${fund.market_cap / 1e9:.0f}B | {pe}{eps}")
         print()
+
+    from clients.claude_client import generate_report
+    from clients.email_client import send_report
+    structured = _build_screener_data(result, ranked=ranked, candidates=candidates)
+    report = generate_report(structured, report_type="research")
+    send_report(
+        subject=f"Weekend Research — {date.today()}",
+        body=report,
+        filename=f"research_{date.today()}.txt",
+        raw_data=structured,
+    )
 
 
 def _add_ticker(ticker: str) -> None:
@@ -162,18 +189,18 @@ def _list_watchlist() -> None:
         db.close()
 
 
-def run_backtest_cmd(tickers: list[str]) -> None:
-    if tickers == ["NYSE"]:
-        from clients.massive import get_nyse_tickers
-        print("Fetching NYSE ticker list...")
-        tickers = get_nyse_tickers()
-        print(f"Found {len(tickers)} common stocks.")
+def run_backtest_cmd(tickers: list[str]) -> list[BacktestResult]:
+    if tickers == ["SECTORS"]:
+        from screener.sector import get_sector_universe
+        print("Fetching sector universe...")
+        tickers = get_sector_universe(top_n=None)
+        print(f"Found {len(tickers)} stocks across all sectors.")
     elif not tickers:
         tickers = _get_tickers()
 
     if not tickers:
         print("No tickers specified and watchlist is empty.")
-        return
+        return []
 
     large_run = len(tickers) > 20
 
@@ -200,6 +227,8 @@ def run_backtest_cmd(tickers: list[str]) -> None:
             _print_backtest_result(result)
         if len(results) > 1:
             _print_backtest_aggregate(results)
+
+    return results
 
 
 def _print_backtest_result(result: BacktestResult) -> None:
@@ -264,6 +293,83 @@ def _print_backtest_summary(results: list[BacktestResult]) -> None:
     print("═" * 60 + "\n")
 
 
+def _build_screener_data(
+    result: ScreenerResult,
+    ranked: list[tuple[str, float]] | None = None,
+    candidates: list[tuple[str, FundamentalsData]] | None = None,
+) -> str:
+    lines = [
+        f"DATE: {result.run_date}",
+        "MACRO:",
+        f"  VIX: {result.macro.vix:.1f}",
+        f"  SPY: ${result.macro.spy_price:.2f} | RSI: {result.macro.spy_rsi:.1f} | Trend: {result.macro.spy_trend}",
+    ]
+    if result.macro.put_call_ratio:
+        lines.append(f"  Put/Call: {result.macro.put_call_ratio:.2f}")
+    lines.append(f"  Signal: {result.macro.signal}")
+
+    if ranked:
+        lines += ["", "SECTOR SCORES:"]
+        for sector, score in ranked:
+            lines.append(f"  {sector:<25} {score:+.2f}")
+
+    lines += ["", f"PICKS: {len(result.picks)}"]
+    for pick in result.picks:
+        t, o, s, f = pick.technicals, pick.options_data, pick.sentiment, pick.fundamentals
+        lines += ["---", f"TICKER: {pick.ticker}", f"CONVICTION: {pick.conviction}/5",
+                  f"SECTOR: {f.sector or 'N/A'}", f"MARKET_CAP: ${f.market_cap / 1e9:.1f}B"]
+        if f.pe_ratio:
+            lines.append(f"PE_RATIO: {f.pe_ratio:.1f}")
+        if f.debt_to_equity:
+            lines.append(f"DEBT_EQUITY: {f.debt_to_equity:.2f}")
+        if f.eps:
+            lines.append(f"EPS: {f.eps:.2f}")
+        lines += [
+            f"RSI_DAILY: {t.rsi_daily:.1f}", f"RSI_WEEKLY: {t.rsi_weekly:.1f}",
+            f"MACD: {t.macd_signal}", f"AT_SUPPORT: {t.at_support}", f"PRICE: ${t.price:.2f}",
+            f"IV_RANK: {o.iv_rank:.1f}", f"STRIKE: ${o.strike:.0f}", f"EXPIRATION: {o.expiration}",
+            f"OPEN_INTEREST: {o.open_interest}",
+            f"SENTIMENT: {s.sentiment_signal} (Massive: {s.massive_sentiment} | FinBERT: {s.finbert_sentiment} {s.finbert_confidence:.2f})",
+            "HEADLINES:",
+        ]
+        for h in pick.news_headlines[:3]:
+            lines.append(f"  - {h}")
+
+    if candidates:
+        lines += ["", "FUNDAMENTAL CANDIDATES:"]
+        for ticker, fund in candidates[:10]:
+            pe = f" PE={fund.pe_ratio:.1f}" if fund.pe_ratio else ""
+            eps = f" EPS={fund.eps:.2f}" if fund.eps else ""
+            lines.append(f"  {ticker:<6} Cap=${fund.market_cap / 1e9:.0f}B{pe}{eps}")
+
+    return "\n".join(lines)
+
+
+def _build_backtest_data(results: list[BacktestResult]) -> str:
+    active = [r for r in results if r.trades]
+    all_trades = [t for r in active for t in r.trades]
+    lines = [
+        f"DATE: {date.today()}",
+        f"TICKERS_TESTED: {len(results)}",
+        f"TICKERS_WITH_TRADES: {len(active)}",
+        f"TOTAL_TRADES: {len(all_trades)}",
+    ]
+    if all_trades:
+        hit_rate = sum(1 for t in all_trades if t.pnl_pct > 0) / len(all_trades)
+        avg_return = sum(t.pnl_pct for t in all_trades) / len(all_trades)
+        lines += [f"HIT_RATE: {hit_rate * 100:.1f}%", f"AVG_RETURN: {avg_return * 100:+.1f}%",
+                  "", "TOP_PERFORMERS:"]
+        ranked = sorted(active, key=lambda r: r.avg_return_pct, reverse=True)
+        for r in ranked[:10]:
+            wins = sum(1 for t in r.trades if t.pnl_pct > 0)
+            lines.append(f"  {r.ticker:<6} avg={r.avg_return_pct * 100:+.1f}% wins={wins}/{r.total_trades}")
+        lines.append("BOTTOM_PERFORMERS:")
+        for r in ranked[-10:]:
+            wins = sum(1 for t in r.trades if t.pnl_pct > 0)
+            lines.append(f"  {r.ticker:<6} avg={r.avg_return_pct * 100:+.1f}% wins={wins}/{r.total_trades}")
+    return "\n".join(lines)
+
+
 def init_db() -> None:
     Base.metadata.create_all(bind=engine)
 
@@ -272,11 +378,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Trading screener")
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--now", action="store_true", help="Run live screener immediately")
-    group.add_argument("--research", action="store_true", help="Run research mode immediately")
-    group.add_argument("--backtest", nargs="*", metavar="TICKER", help="Run backtest (optionally specify tickers; defaults to watchlist)")
-    group.add_argument("--add", metavar="TICKER", help="Add a ticker to the watchlist")
-    group.add_argument("--remove", metavar="TICKER", help="Remove a ticker from the watchlist")
-    group.add_argument("--watchlist", action="store_true", help="Show current watchlist")
+    group.add_argument("--research", action="store_true", help="Run weekend research immediately")
+    group.add_argument("--backtest", nargs="*", metavar="TICKER", help="Run backtest (defaults to watchlist)")
+    group.add_argument("--watch", nargs="?", const="", metavar="TICKER",
+                       help="Manage watchlist: --watch (list), --watch AAPL (add), --watch -AAPL (remove)")
     args = parser.parse_args()
 
     init_db()
@@ -286,13 +391,25 @@ if __name__ == "__main__":
     elif args.research:
         run_research()
     elif args.backtest is not None:
-        run_backtest_cmd(args.backtest)
-    elif args.add:
-        _add_ticker(args.add)
-    elif args.remove:
-        _remove_ticker(args.remove)
-    elif args.watchlist:
-        _list_watchlist()
+        results = run_backtest_cmd(args.backtest)
+        if results:
+            from clients.claude_client import generate_report
+            from clients.email_client import send_report
+            structured = _build_backtest_data(results)
+            report = generate_report(structured, report_type="backtest")
+            send_report(
+                subject=f"Backtest Report — {date.today()}",
+                body=report,
+                filename=f"backtest_{date.today()}.txt",
+                raw_data=structured,
+            )
+    elif args.watch is not None:
+        if not args.watch:
+            _list_watchlist()
+        elif args.watch.startswith("-"):
+            _remove_ticker(args.watch[1:])
+        else:
+            _add_ticker(args.watch)
     else:
         scheduler = BlockingScheduler(timezone=ET)
         scheduler.add_job(run_live, "cron", day_of_week="mon-fri", hour=10, minute=30)

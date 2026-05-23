@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import patch, MagicMock
-from clients.fmp import get_profile, get_ratios, get_income_statement, get_key_metrics
+from clients.fmp import get_profile, get_ratios, get_income_statement, get_key_metrics, get_stock_screener
 
 
 def mock_response(payload) -> MagicMock:
@@ -65,3 +65,30 @@ def test_get_key_metrics_empty(mock_get):
     mock_get.return_value = mock_response([])
     result = get_key_metrics("AAPL")
     assert result == {}
+
+
+@patch("clients.fmp.httpx.get")
+def test_get_stock_screener(mock_get):
+    mock_get.return_value = mock_response([
+        {"symbol": "AAPL", "sector": "Technology"},
+        {"symbol": "MSFT", "sector": "Technology"},
+    ])
+    result = get_stock_screener("Technology")
+    assert len(result) == 2
+    assert result[0]["symbol"] == "AAPL"
+    params = mock_get.call_args.kwargs["params"]
+    assert params["sector"] == "Technology"
+
+
+@patch("clients.fmp.httpx.get")
+def test_get_stock_screener_empty(mock_get):
+    mock_get.return_value = mock_response([])
+    result = get_stock_screener("Technology")
+    assert result == []
+
+
+@patch("clients.fmp.httpx.get")
+def test_get_stock_screener_non_list_response(mock_get):
+    mock_get.return_value = mock_response({"error": "Not found"})
+    result = get_stock_screener("Technology")
+    assert result == []
