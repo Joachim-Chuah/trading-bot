@@ -130,12 +130,41 @@ trading-bot/
 git clone https://github.com/Joachim-Chuah/trading-bot.git
 cd trading-bot
 
-# Copy env and fill in API keys + DATABASE_URL
-cp .env.example .env
-
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 
-python main.py
+# Copy env and fill in API keys + DATABASE_URL
+cp .env.example .env
+```
+
+---
+
+## Commands
+
+**Run the screener once right now** (seeds AAPL, NVDA, MSFT into watchlist if empty):
+```bash
+python3 run_now.py
+```
+
+**Run on the live schedule** (Mon–Fri 10:30am + 2:00pm ET, Sat 9:00am research):
+```bash
+python3 main.py
+```
+
+**Add a ticker to the watchlist:**
+```bash
+python3 -c "
+from db.database import SessionLocal
+from db.models import Watchlist
+db = SessionLocal()
+db.add(Watchlist(ticker='TSLA', active=True))
+db.commit(); db.close()
+print('Added')
+"
+```
+
+**Run tests:**
+```bash
+pytest --cov=. --cov-report=term-missing
 ```
