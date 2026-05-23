@@ -20,7 +20,9 @@ def engine():
 def db(engine):
     connection = engine.connect()
     transaction = connection.begin()
-    Session = sessionmaker(bind=connection)
+    # create_savepoint: session.commit() releases a savepoint instead of
+    # committing the outer transaction, so teardown rollback always works.
+    Session = sessionmaker(bind=connection, join_transaction_mode="create_savepoint")
     session = Session()
     yield session
     session.close()

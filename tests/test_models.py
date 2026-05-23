@@ -77,13 +77,13 @@ def test_screener_run_hostile_macro_zero_picks(db):
 
 
 def test_create_watchlist_entry(db):
-    entry = Watchlist(ticker="MSFT", active=True, notes="Strong AI catalyst")
+    entry = Watchlist(ticker="ZTEST", active=True, notes="Strong AI catalyst")
     db.add(entry)
     db.commit()
     db.refresh(entry)
 
     assert entry.id is not None
-    assert entry.ticker == "MSFT"
+    assert entry.ticker == "ZTEST"
     assert entry.active is True
 
 

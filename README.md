@@ -142,29 +142,14 @@ cp .env.example .env
 
 ## Commands
 
-**Run the screener once right now** (seeds AAPL, NVDA, MSFT into watchlist if empty):
 ```bash
-python3 run_now.py
-```
+python3 main.py                  # start scheduler (Mon-Fri 10:30am + 2:00pm, Sat 9:00am)
+python3 main.py --now            # run live screener immediately
+python3 main.py --research       # run weekend research scan immediately
 
-**Run on the live schedule** (Mon–Fri 10:30am + 2:00pm ET, Sat 9:00am research):
-```bash
-python3 main.py
-```
+python3 main.py --add AAPL       # add ticker to watchlist
+python3 main.py --remove AAPL    # remove ticker from watchlist
+python3 main.py --watchlist      # show current watchlist
 
-**Add a ticker to the watchlist:**
-```bash
-python3 -c "
-from db.database import SessionLocal
-from db.models import Watchlist
-db = SessionLocal()
-db.add(Watchlist(ticker='TSLA', active=True))
-db.commit(); db.close()
-print('Added')
-"
-```
-
-**Run tests:**
-```bash
-pytest --cov=. --cov-report=term-missing
+pytest --cov=. --cov-report=term-missing  # run tests
 ```
