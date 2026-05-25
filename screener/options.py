@@ -4,7 +4,7 @@ from models.stock import OptionsData
 _MIN_DAYS_TO_EXPIRY = 365
 _MAX_OTM_PCT = 0.10
 _MAX_ITM_PCT = 0.05
-_MAX_IV_RANK = 30.0
+_MAX_IV = 0.30
 _MIN_OPEN_INTEREST = 100
 _MAX_RELATIVE_SPREAD = 0.15
 
@@ -32,7 +32,7 @@ def _is_viable_leap(contract: dict, current_price: float) -> bool:
 
     greeks = contract.get("greeks", {})
     iv = greeks.get("implied_volatility") or contract.get("implied_volatility", 0)
-    if iv > _MAX_IV_RANK:
+    if iv > _MAX_IV:
         return False
 
     oi = contract.get("open_interest", 0)

@@ -11,7 +11,7 @@ def make_contract(
     strike: float = 195.0,
     current_price: float = 200.0,
     days_out: int = 425,
-    iv: float = 20.0,
+    iv: float = 0.20,
     open_interest: int = 500,
     bid: float = 5.0,
     ask: float = 5.50,
@@ -63,11 +63,11 @@ def test_rejects_strike_more_than_5_pct_itm():
 
 
 def test_rejects_high_iv():
-    assert _is_viable_leap(make_contract(iv=31.0), 200.0) is False
+    assert _is_viable_leap(make_contract(iv=0.31), 200.0) is False
 
 
 def test_passes_iv_at_boundary():
-    assert _is_viable_leap(make_contract(iv=30.0), 200.0) is True
+    assert _is_viable_leap(make_contract(iv=0.30), 200.0) is True
 
 
 def test_rejects_low_open_interest():
@@ -97,7 +97,7 @@ def test_returns_none_empty_chain():
 
 
 def test_returns_none_no_viable_contracts():
-    chain = [make_contract(iv=50.0), make_contract(open_interest=5)]
+    chain = [make_contract(iv=0.50), make_contract(open_interest=5)]
     assert evaluate_options(chain, 200.0) is None
 
 

@@ -10,6 +10,7 @@ from db.models import Watchlist
 from models.stock import FundamentalsData, Pick, ScreenerResult
 from screener.screener import run_screener
 from screener.backtest import run_backtest, BacktestResult
+from screener.visualize import save_backtest_chart
 
 ET = ZoneInfo("America/New_York")
 
@@ -210,14 +211,14 @@ def run_backtest_cmd(tickers: list[str]) -> list[BacktestResult]:
 
     if large_run:
         from concurrent.futures import ThreadPoolExecutor, as_completed
+        from tqdm import tqdm
         results: list[BacktestResult] = []
         with ThreadPoolExecutor(max_workers=8) as executor:
             futures = {executor.submit(run_backtest, t): t for t in tickers}
-            for i, future in enumerate(as_completed(futures), 1):
-                results.append(future.result())
-                if i % 50 == 0 or i == len(tickers):
-                    print(f"  Progress: {i}/{len(tickers)}...   ", end="\r")
-        print()
+            with tqdm(total=len(tickers), desc="Backtesting", unit="ticker") as pbar:
+                for future in as_completed(futures):
+                    results.append(future.result())
+                    pbar.update(1)
         _print_backtest_summary(results)
     else:
         results = []
@@ -397,11 +398,14 @@ if __name__ == "__main__":
             from clients.email_client import send_report
             structured = _build_backtest_data(results)
             report = generate_report(structured, report_type="backtest")
+            chart_path = save_backtest_chart(results)
+            print(f"  Chart saved: {chart_path}")
             send_report(
                 subject=f"Backtest Report — {date.today()}",
                 body=report,
                 filename=f"backtest_{date.today()}.txt",
                 raw_data=structured,
+                chart_path=chart_path,
             )
     elif args.watch is not None:
         if not args.watch:

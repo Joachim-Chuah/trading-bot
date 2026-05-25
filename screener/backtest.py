@@ -12,8 +12,8 @@ from clients.yfinance_client import get_price_history
 _RISK_FREE_RATE = 0.05
 _WARMUP_DAYS = 200
 _MIN_IV = 0.10
-_RSI_DAILY_THRESHOLD = 40.0
-_RSI_WEEKLY_THRESHOLD = 45.0
+_RSI_DAILY_THRESHOLD = 45.0
+_RSI_WEEKLY_THRESHOLD = 50.0
 _SUPPORT_PROXIMITY = 0.03
 
 
@@ -120,6 +120,7 @@ def run_backtest(
     max_hold_days: int = 90,
     leap_dte: int = 730,
     otm_pct: float = 0.05,
+    vol_premium: float = 1.20,
 ) -> BacktestResult:
     result = BacktestResult(ticker=ticker)
 
@@ -134,7 +135,7 @@ def run_backtest(
         prices.index = prices.index.tz_localize(None)
 
     signals = _entry_signals(prices)
-    iv_series = _historical_vol(prices).clip(lower=_MIN_IV)
+    iv_series = (_historical_vol(prices) * vol_premium).clip(lower=_MIN_IV)
     dates = prices.index
 
     in_trade_until: date | None = None

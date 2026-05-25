@@ -77,7 +77,7 @@ def test_passes_all_gates():
 def test_discards_daily_rsi_too_high():
     result = evaluate_technicals(
         daily_bars=make_support_bars(),
-        daily_rsi=make_rsi(40.0),
+        daily_rsi=make_rsi(45.0),
         weekly_rsi=make_rsi(38.0),
         macd=make_macd(0.3),
         snapshot=make_snapshot(502.0),
@@ -89,7 +89,7 @@ def test_discards_weekly_rsi_too_high():
     result = evaluate_technicals(
         daily_bars=make_support_bars(),
         daily_rsi=make_rsi(32.0),
-        weekly_rsi=make_rsi(45.0),
+        weekly_rsi=make_rsi(50.0),
         macd=make_macd(0.3),
         snapshot=make_snapshot(502.0),
     )

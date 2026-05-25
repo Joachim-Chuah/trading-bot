@@ -36,6 +36,26 @@ def test_send_report_includes_raw_data_in_attachment(monkeypatch):
     assert "RAW" in attachment_text
 
 
+def test_send_report_attaches_chart_image(monkeypatch, tmp_path):
+    monkeypatch.setattr(email_module, "_USER", "test@gmail.com")
+    monkeypatch.setattr(email_module, "_PASSWORD", "test-password")
+
+    chart_file = tmp_path / "chart.png"
+    chart_file.write_bytes(b"\x89PNG\r\n\x1a\n")  # minimal PNG header
+
+    mock_smtp = MagicMock()
+    with patch("clients.email_client.smtplib.SMTP_SSL") as mock_ssl:
+        mock_ssl.return_value.__enter__.return_value = mock_smtp
+        from clients.email_client import send_report
+        msg_captured = []
+        mock_smtp.send_message.side_effect = lambda m: msg_captured.append(m)
+        send_report("Subject", "Body", "report.txt", chart_path=str(chart_file))
+
+    payload = msg_captured[0].get_payload()
+    content_types = [p.get_content_type() for p in payload]
+    assert "image/png" in content_types
+
+
 def test_send_report_skips_when_no_credentials(monkeypatch):
     monkeypatch.setattr(email_module, "_USER", None)
     monkeypatch.setattr(email_module, "_PASSWORD", None)

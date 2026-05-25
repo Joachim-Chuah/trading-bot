@@ -1,8 +1,8 @@
 from models.stock import TechnicalsData
 from typing import Literal
 
-_RSI_DAILY_THRESHOLD = 40.0
-_RSI_WEEKLY_THRESHOLD = 45.0
+_RSI_DAILY_THRESHOLD = 45.0
+_RSI_WEEKLY_THRESHOLD = 50.0
 _SUPPORT_PROXIMITY = 0.03
 
 

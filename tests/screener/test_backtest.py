@@ -219,3 +219,12 @@ def test_run_backtest_none_history(mock_hist):
     mock_hist.return_value = None
     result = run_backtest("AAPL")
     assert result.trades == []
+
+
+@patch("screener.backtest.get_price_history")
+def test_vol_premium_increases_option_price(mock_hist):
+    mock_hist.return_value = make_oversold_history()
+    result_base = run_backtest("AAPL", vol_premium=1.0)
+    result_premium = run_backtest("AAPL", vol_premium=3.0)
+    assert result_base.trades and result_premium.trades
+    assert result_premium.trades[0].entry_option_price > result_base.trades[0].entry_option_price
