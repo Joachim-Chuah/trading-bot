@@ -47,8 +47,10 @@ def get_sector_universe(top_n: int | None = None) -> list[str]:
     tickers: list[str] = []
     for sector in sectors:
         try:
-            for s in get_stock_screener(sector):
+            stocks = get_stock_screener(sector)
+            for s in stocks:
                 tickers.append(s["symbol"])
-        except Exception:
+        except Exception as e:
+            print(f"[sector] failed to fetch {sector}: {e}")
             continue
     return list(dict.fromkeys(tickers))

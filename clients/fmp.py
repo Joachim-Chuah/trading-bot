@@ -44,4 +44,7 @@ def get_stock_screener(sector: str, min_market_cap: int = 2_000_000_000) -> list
         "isActivelyTrading": "true",
         "limit": 200,
     })
-    return data if isinstance(data, list) else []
+    if not isinstance(data, list):
+        print(f"[fmp] stock-screener unexpected response for {sector}: {data}")
+        return []
+    return data
