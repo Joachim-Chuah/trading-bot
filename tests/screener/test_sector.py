@@ -1,4 +1,3 @@
-import pytest
 from unittest.mock import patch
 from screener.sector import score_sectors, get_sector_universe, SECTOR_ETFS, SECTOR_UNIVERSE
 
@@ -39,25 +38,45 @@ def test_score_sectors_skips_failed_etf(mock_snap):
     assert len(ranked) == len(SECTOR_ETFS) - 1
 
 
+@patch("screener.sector.get_etf_holdings")
 @patch("screener.sector.score_sectors")
-def test_get_sector_universe_top_n(mock_score):
-    mock_score.return_value = [
-        ("Technology", 2.0), ("Energy", 1.5), ("Healthcare", 1.0), ("Financial Services", 0.5),
-    ]
+def test_get_sector_universe_uses_live_holdings(mock_score, mock_holdings):
+    mock_score.return_value = [("Technology", 2.0), ("Energy", 1.5)]
+    mock_holdings.return_value = ["AAPL", "MSFT", "NVDA"]
     tickers = get_sector_universe(top_n=2)
+    assert tickers == ["AAPL", "MSFT", "NVDA"]  # deduped across both sectors
+
+
+@patch("screener.sector.get_etf_holdings")
+@patch("screener.sector.score_sectors")
+def test_get_sector_universe_falls_back_on_empty(mock_score, mock_holdings):
+    mock_score.return_value = [("Technology", 2.0)]
+    mock_holdings.return_value = []
+    tickers = get_sector_universe(top_n=1)
     assert all(t in tickers for t in SECTOR_UNIVERSE["Technology"])
-    assert all(t in tickers for t in SECTOR_UNIVERSE["Energy"])
-    assert not any(t in tickers for t in SECTOR_UNIVERSE["Healthcare"])
 
 
-def test_get_sector_universe_all_sectors():
+@patch("screener.sector.get_etf_holdings")
+@patch("screener.sector.score_sectors")
+def test_get_sector_universe_falls_back_on_exception(mock_score, mock_holdings):
+    mock_score.return_value = [("Technology", 2.0)]
+    mock_holdings.side_effect = Exception("API error")
+    tickers = get_sector_universe(top_n=1)
+    assert all(t in tickers for t in SECTOR_UNIVERSE["Technology"])
+
+
+@patch("screener.sector.get_etf_holdings")
+def test_get_sector_universe_all_sectors(mock_holdings):
+    mock_holdings.return_value = ["AAPL", "MSFT"]
     tickers = get_sector_universe(top_n=None)
-    assert len(tickers) == sum(len(v) for v in SECTOR_UNIVERSE.values())
+    assert mock_holdings.call_count == len(SECTOR_ETFS)
 
 
-def test_get_sector_universe_no_duplicates():
+@patch("screener.sector.get_etf_holdings")
+def test_get_sector_universe_no_duplicates(mock_holdings):
+    mock_holdings.return_value = ["AAPL"]  # same ticker across all sectors
     tickers = get_sector_universe(top_n=None)
-    assert len(tickers) == len(set(tickers))
+    assert tickers.count("AAPL") == 1
 
 
 @patch("screener.sector.get_snapshot")

@@ -1,4 +1,5 @@
 from clients.massive import get_snapshot
+from clients.fmp import get_etf_holdings
 
 SECTOR_ETFS: dict[str, str] = {
     "Technology": "XLK",
@@ -55,5 +56,13 @@ def get_sector_universe(top_n: int | None = None) -> list[str]:
 
     tickers: list[str] = []
     for sector in sectors:
-        tickers.extend(SECTOR_UNIVERSE.get(sector, []))
+        etf = SECTOR_ETFS[sector]
+        try:
+            live = get_etf_holdings(etf)
+        except Exception:
+            live = []
+        holdings = live if live else SECTOR_UNIVERSE[sector]
+        if not live:
+            print(f"[sector] using static universe for {sector}")
+        tickers.extend(holdings)
     return list(dict.fromkeys(tickers))

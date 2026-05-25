@@ -37,3 +37,13 @@ def get_key_metrics(ticker: str) -> dict[str, Any]:
     return data[0] if data else {}
 
 
+def get_etf_holdings(etf: str, top_n: int = 25) -> list[str]:
+    data = _get("/etf-holder", {"symbol": etf})
+    if not isinstance(data, list) or not data:
+        return []
+    sorted_holdings = sorted(
+        [h for h in data if h.get("asset")],
+        key=lambda h: h.get("weightPercentage", 0),
+        reverse=True,
+    )
+    return [h["asset"] for h in sorted_holdings[:top_n]]
