@@ -1,5 +1,4 @@
 from clients.massive import get_snapshot
-from clients.fmp import get_stock_screener
 
 SECTOR_ETFS: dict[str, str] = {
     "Technology": "XLK",
@@ -13,6 +12,20 @@ SECTOR_ETFS: dict[str, str] = {
     "Real Estate": "XLRE",
     "Utilities": "XLU",
     "Communication Services": "XLC",
+}
+
+SECTOR_UNIVERSE: dict[str, list[str]] = {
+    "Technology": ["AAPL", "MSFT", "NVDA", "AVGO", "ORCL", "CRM", "AMD", "QCOM", "TXN", "NOW", "AMAT", "ADI", "MU", "KLAC", "INTC"],
+    "Healthcare": ["LLY", "UNH", "JNJ", "ABBV", "MRK", "TMO", "ABT", "DHR", "BMY", "AMGN", "PFE", "ISRG", "MDT", "SYK", "GILD"],
+    "Financial Services": ["JPM", "BAC", "WFC", "GS", "MS", "BLK", "SPGI", "CB", "PGR", "CME", "ICE", "AXP", "V", "MA", "COF"],
+    "Energy": ["XOM", "CVX", "COP", "EOG", "SLB", "MPC", "PSX", "VLO", "OXY", "HAL", "DVN", "BKR", "HES", "MRO", "FANG"],
+    "Industrials": ["GE", "RTX", "CAT", "HON", "UNP", "LMT", "DE", "EMR", "ETN", "ITW", "GD", "WM", "PH", "NOC", "FDX"],
+    "Consumer Cyclical": ["AMZN", "TSLA", "HD", "MCD", "NKE", "LOW", "SBUX", "TJX", "BKNG", "CMG", "DHI", "ORLY", "AZO", "MAR", "F"],
+    "Consumer Defensive": ["WMT", "PG", "COST", "KO", "PEP", "PM", "MO", "CL", "MDLZ", "GIS", "SYY", "K", "HSY", "CAG", "STZ"],
+    "Basic Materials": ["LIN", "APD", "SHW", "ECL", "FCX", "NEM", "NUE", "VMC", "MLM", "ALB", "CF", "MOS", "PPG", "EMN", "CTVA"],
+    "Real Estate": ["PLD", "AMT", "EQIX", "CCI", "PSA", "O", "WELL", "SPG", "DLR", "AVB", "EQR", "VICI", "EXR", "ARE", "WY"],
+    "Utilities": ["NEE", "DUK", "SO", "D", "SRE", "AEP", "EXC", "XEL", "PCG", "ED", "ETR", "FE", "WEC", "AWK", "DTE"],
+    "Communication Services": ["GOOGL", "META", "NFLX", "DIS", "CMCSA", "T", "VZ", "TMUS", "CHTR", "EA", "WBD", "FOXA", "OMC", "IPG", "TTWO"],
 }
 
 
@@ -34,23 +47,13 @@ def score_sectors() -> list[tuple[str, float]]:
 
 
 def get_sector_universe(top_n: int | None = None) -> list[str]:
-    """
-    Return stock tickers from top_n sectors by momentum score.
-    If top_n is None, returns stocks from all 11 sectors (for backtesting).
-    """
     if top_n is None:
-        sectors = list(SECTOR_ETFS.keys())
+        sectors = list(SECTOR_UNIVERSE.keys())
     else:
         ranked = score_sectors()
         sectors = [s for s, _ in ranked[:top_n]]
 
     tickers: list[str] = []
     for sector in sectors:
-        try:
-            stocks = get_stock_screener(sector)
-            for s in stocks:
-                tickers.append(s["symbol"])
-        except Exception as e:
-            print(f"[sector] failed to fetch {sector}: {e}")
-            continue
+        tickers.extend(SECTOR_UNIVERSE.get(sector, []))
     return list(dict.fromkeys(tickers))

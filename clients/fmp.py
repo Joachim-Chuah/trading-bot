@@ -37,14 +37,3 @@ def get_key_metrics(ticker: str) -> dict[str, Any]:
     return data[0] if data else {}
 
 
-def get_stock_screener(sector: str, min_market_cap: int = 2_000_000_000) -> list[dict[str, Any]]:
-    data = _get("/stock-screener", {
-        "sector": sector,
-        "marketCapMoreThan": min_market_cap,
-        "isActivelyTrading": "true",
-        "limit": 200,
-    })
-    if not isinstance(data, list):
-        print(f"[fmp] stock-screener unexpected response for {sector}: {data}")
-        return []
-    return data
