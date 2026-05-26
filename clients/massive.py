@@ -13,7 +13,7 @@ _API_KEY = os.getenv("MASSIVE_API_KEY")
 def _get(path: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
     url = f"{BASE_URL}{path}"
     p = {"apiKey": _API_KEY, **(params or {})}
-    response = httpx.get(url, params=p, timeout=10)
+    response = httpx.get(url, params=p, timeout=30)
     response.raise_for_status()
     return response.json()
 
